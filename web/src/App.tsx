@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { FiltersPanel } from './components/FiltersPanel'
 import { Header } from './components/Header'
 import { SignalTable } from './components/SignalTable'
-import { audioReady, pop, unlockAudio } from './sound'
+import { pop, unlockAudio } from './sound'
 import { useScanner } from './useScanner'
 
 const SOUND_KEY = 'momo.sound'
 
 export default function App() {
   const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) === '1')
-  const [locked, setLocked] = useState(false)
+  const [locked, setLocked] = useState(soundOn)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const onLive = useCallback(() => {
@@ -24,10 +24,7 @@ export default function App() {
   useEffect(() => {
     if (!soundOn) return
 
-    const unlock = () => {
-      unlockAudio()
-      setLocked(!audioReady())
-    }
+    const unlock = () => void unlockAudio().then((ok) => setLocked(!ok))
 
     document.addEventListener('pointerdown', unlock, { once: true })
     document.addEventListener('keydown', unlock, { once: true })
@@ -44,17 +41,14 @@ export default function App() {
     localStorage.setItem(SOUND_KEY, next ? '1' : '0')
     setSoundOn(next)
 
-    if (next) {
-      unlockAudio()
-      setLocked(!audioReady())
-    }
+    if (next) void unlockAudio().then((ok) => setLocked(!ok))
   }
 
-  const testSound = () => {
-    unlockAudio()
-    // context resume is async; retry once it is running
-    setTimeout(() => setLocked(!pop()), 50)
-  }
+  const testSound = () =>
+    void unlockAudio().then((ok) => {
+      setLocked(!ok)
+      if (ok) pop()
+    })
 
   return (
     <div className="min-h-screen">
@@ -70,10 +64,7 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-6 py-8">
         {soundOn && locked && (
           <button
-            onClick={() => {
-              unlockAudio()
-              setLocked(false)
-            }}
+            onClick={() => void unlockAudio().then((ok) => setLocked(!ok))}
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400/10 py-3 text-sm font-medium text-amber-300 ring-1 ring-amber-400/30"
           >
             <Volume2 className="size-4" />

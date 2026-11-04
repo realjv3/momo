@@ -1,13 +1,14 @@
 let ctx: AudioContext | null = null
 
-export function unlockAudio(): void {
+// unlockAudio resolves true once audio can play; browsers require a user gesture after each reload.
+export async function unlockAudio(): Promise<boolean> {
   ctx ??= new AudioContext()
-  if (ctx.state === 'suspended') void ctx.resume()
+  if (ctx.state === 'suspended') await ctx.resume()
+
+  return ctx.state === 'running'
 }
 
-export const audioReady = (): boolean => ctx?.state === 'running'
-
-// pop synthesizes a short descending sine blip; returns false when audio is still locked.
+// pop plays a soft low "plop"; returns false when audio is still locked.
 export function pop(): boolean {
   if (!ctx || ctx.state !== 'running') return false
 
@@ -16,15 +17,16 @@ export function pop(): boolean {
   const gain = ctx.createGain()
 
   osc.type = 'sine'
-  osc.frequency.setValueAtTime(1100, t)
-  osc.frequency.exponentialRampToValueAtTime(240, t + 0.09)
+  osc.frequency.setValueAtTime(520, t)
+  osc.frequency.exponentialRampToValueAtTime(130, t + 0.1)
+
   gain.gain.setValueAtTime(0.0001, t)
-  gain.gain.exponentialRampToValueAtTime(0.6, t + 0.006)
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.14)
+  gain.gain.exponentialRampToValueAtTime(0.9, t + 0.012)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22)
 
   osc.connect(gain).connect(ctx.destination)
   osc.start(t)
-  osc.stop(t + 0.15)
+  osc.stop(t + 0.25)
 
   return true
 }
