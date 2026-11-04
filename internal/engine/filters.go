@@ -11,11 +11,14 @@ type Filters struct {
 	MinChangeFromOpenPct float64 `json:"minChangeFromOpenPct"`
 	MinSessionVolume     float64 `json:"minSessionVolume"`
 	MinBarVolume         float64 `json:"minBarVolume"`
+	PriorBars            int     `json:"priorBars"`
+	MinPriorBarVolume    float64 `json:"minPriorBarVolume"`
 	MinFloat             float64 `json:"minFloat"`
 	MaxFloat             float64 `json:"maxFloat"`
-	MinBarChangePct      float64 `json:"minBarChangePct"`
+	MoveWindowMinutes    int     `json:"moveWindowMinutes"`
+	MinMovePct           float64 `json:"minMovePct"`
+	VolWindowMinutes     int     `json:"volWindowMinutes"`
 	VolRiseFactor        float64 `json:"volRiseFactor"`
-	RisingBars           int     `json:"risingBars"`
 	EMAPeriod            int     `json:"emaPeriod"`
 	CooldownMinutes      int     `json:"cooldownMinutes"`
 	PreMarket            bool    `json:"preMarket"`
@@ -25,27 +28,32 @@ type Filters struct {
 
 func DefaultFilters() Filters {
 	return Filters{
-		MinPrice:         1,
-		MaxPrice:         20,
-		MinChangePct:     5,
-		MinSessionVolume: 50_000,
-		MinBarVolume:     5_000,
-		MaxFloat:         20_000_000,
-		MinBarChangePct:  0.25,
-		VolRiseFactor:    1.2,
-		RisingBars:       2,
-		EMAPeriod:        9,
-		CooldownMinutes:  3,
-		PreMarket:        true,
-		Regular:          true,
-		PostMarket:       true,
+		MinPrice:          1,
+		MaxPrice:          20,
+		MinChangePct:      5,
+		MinSessionVolume:  350_000,
+		MinBarVolume:      5_000,
+		PriorBars:         2,
+		MinPriorBarVolume: 2_000,
+		MaxFloat:          20_000_000,
+		MoveWindowMinutes: 5,
+		MinMovePct:        3,
+		VolWindowMinutes:  3,
+		VolRiseFactor:     2,
+		EMAPeriod:         9,
+		CooldownMinutes:   3,
+		PreMarket:         true,
+		Regular:           true,
+		PostMarket:        true,
 	}
 }
 
 // Normalize clamps values that would break the engine.
 func (f Filters) Normalize() Filters {
 	f.EMAPeriod = max(f.EMAPeriod, 2)
-	f.RisingBars = min(max(f.RisingBars, 1), maxRecent-2)
+	f.PriorBars = min(max(f.PriorBars, 0), maxRecent-1)
+	f.MoveWindowMinutes = min(max(f.MoveWindowMinutes, 1), maxRecent)
+	f.VolWindowMinutes = min(max(f.VolWindowMinutes, 1), maxRecent)
 	f.CooldownMinutes = max(f.CooldownMinutes, 0)
 
 	return f

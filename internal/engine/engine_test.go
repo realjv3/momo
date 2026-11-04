@@ -12,6 +12,13 @@ import (
 // mon is a Monday in regular hours (10:00 ET).
 var mon = time.Date(2026, 11, 2, 10, 0, 0, 0, session.ET)
 
+func testFilters() Filters {
+	f := DefaultFilters()
+	f.MinSessionVolume = 50_000
+
+	return f
+}
+
 func bar(i int, c, v float64) market.Bar {
 	start := mon.Add(time.Duration(i) * time.Minute)
 
@@ -49,7 +56,7 @@ func ramp() []market.Bar {
 }
 
 func TestSignalOnUpwardMomentum(t *testing.T) {
-	sigs := run(t, Meta{Float: 5_000_000, PrevClose: 1.50}, DefaultFilters(), ramp())
+	sigs := run(t, Meta{Float: 5_000_000, PrevClose: 1.50}, testFilters(), ramp())
 
 	if len(sigs) == 0 {
 		t.Fatal("expected a signal on rising price and volume above the EMA")
@@ -72,7 +79,7 @@ func TestFiltersBlock(t *testing.T) {
 
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
-			f, m := DefaultFilters(), Meta{Float: 5_000_000, PrevClose: 1.50}
+			f, m := testFilters(), Meta{Float: 5_000_000, PrevClose: 1.50}
 			mutate(&f, &m)
 
 			if sigs := run(t, m, f, ramp()); len(sigs) != 0 {
@@ -86,7 +93,7 @@ func TestCooldownSuppressesRepeats(t *testing.T) {
 	bars := ramp()
 	bars = append(bars, bar(15, 2.70, 160_000), bar(16, 3.00, 320_000))
 
-	f := DefaultFilters()
+	f := testFilters()
 	f.CooldownMinutes = 10
 
 	if sigs := run(t, Meta{Float: 5_000_000, PrevClose: 1.50}, f, bars); len(sigs) != 1 {
@@ -114,7 +121,7 @@ func TestMinuteGapBlocksSignal(t *testing.T) {
 
 	bars = append(bars, bar(12, 2.10, 20_000), bar(13, 2.25, 40_000), bar(20, 2.45, 80_000))
 
-	if sigs := run(t, Meta{Float: 5_000_000, PrevClose: 1.50}, DefaultFilters(), bars); len(sigs) != 1 {
+	if sigs := run(t, Meta{Float: 5_000_000, PrevClose: 1.50}, testFilters(), bars); len(sigs) != 1 {
 		t.Fatalf("expected only the pre-gap signal, got %d", len(sigs))
 	}
 }
@@ -131,7 +138,7 @@ func TestFailedBackfillRetries(t *testing.T) {
 		return nil, nil
 	}
 
-	e := New(map[string]Meta{"X": {Float: 5_000_000, PrevClose: 1.50}}, DefaultFilters(), backfill, out)
+	e := New(map[string]Meta{"X": {Float: 5_000_000, PrevClose: 1.50}}, testFilters(), backfill, out)
 	ctx := context.Background()
 
 	e.Handle(ctx, bar(0, 2.00, 10_000))
@@ -163,7 +170,7 @@ func TestBackfillReplaysBufferedBars(t *testing.T) {
 
 	out := make(chan Signal, 8)
 	backfill := func(context.Context, string, time.Time, time.Time) ([]market.Bar, error) { return history, nil }
-	e := New(map[string]Meta{"X": {Float: 5_000_000, PrevClose: 1.50}}, DefaultFilters(), backfill, out)
+	e := New(map[string]Meta{"X": {Float: 5_000_000, PrevClose: 1.50}}, testFilters(), backfill, out)
 	ctx := context.Background()
 
 	e.Handle(ctx, bar(12, 2.10, 20_000))
@@ -173,5 +180,60 @@ func TestBackfillReplaysBufferedBars(t *testing.T) {
 
 	if len(out) == 0 {
 		t.Fatal("expected a signal from history plus the bars buffered during backfill")
+	}
+}
+
+func TestHalfCentTickOnThinVolumeDoesNotSignal(t *testing.T) {
+	var bars []market.Bar
+	for i := 0; i < 12; i++ {
+		bars = append(bars, bar(i, 1.95, 1_000))
+	}
+
+	bars = append(bars, bar(12, 1.96, 6_400))
+
+	if sigs := run(t, Meta{Float: 3_000_000, PrevClose: 1.69}, testFilters(), bars); len(sigs) != 0 {
+		t.Fatalf("a half-cent tick must not signal, got %d", len(sigs))
+	}
+}
+
+func TestJumpAfterFlatBarsSignals(t *testing.T) {
+	var bars []market.Bar
+	for i := 0; i < 12; i++ {
+		bars = append(bars, bar(i, 1.96, 5_000))
+	}
+
+	bars = append(bars, bar(12, 2.03, 12_000))
+
+	if sigs := run(t, Meta{Float: 3_000_000, PrevClose: 1.69}, testFilters(), bars); len(sigs) != 1 {
+		t.Fatalf("a 3.5%% jump on 2.4x volume should signal once, got %d", len(sigs))
+	}
+}
+
+func TestThinPriorBarsBlockSignal(t *testing.T) {
+	var bars []market.Bar
+	for i := 0; i < 12; i++ {
+		bars = append(bars, bar(i, 1.96, 500))
+	}
+
+	bars = append(bars, bar(12, 2.10, 60_000))
+
+	f := testFilters()
+	f.MinSessionVolume = 0
+
+	if sigs := run(t, Meta{Float: 3_000_000, PrevClose: 1.69}, f, bars); len(sigs) != 0 {
+		t.Fatalf("a jump after thin prior bars must not signal, got %d", len(sigs))
+	}
+}
+
+func TestMissingPriorMinuteBlocksSignal(t *testing.T) {
+	var bars []market.Bar
+	for i := 0; i < 11; i++ {
+		bars = append(bars, bar(i, 1.96, 5_000))
+	}
+
+	bars = append(bars, bar(12, 2.10, 60_000))
+
+	if sigs := run(t, Meta{Float: 3_000_000, PrevClose: 1.69}, testFilters(), bars); len(sigs) != 0 {
+		t.Fatalf("a missing prior minute counts as zero volume, got %d signals", len(sigs))
 	}
 }

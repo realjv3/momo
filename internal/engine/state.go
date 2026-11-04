@@ -7,7 +7,10 @@ import (
 	"github.com/realjv3/momo/internal/session"
 )
 
-const maxRecent = 8
+const (
+	maxRecent = 30
+	barMs     = 60_000
+)
 
 type Meta struct {
 	Float     int64
@@ -106,7 +109,7 @@ func (s *state) changePct(price float64) float64 {
 func (s *state) check(b market.Bar, f Filters) (Signal, bool) {
 	chg := s.changePct(b.C)
 
-	if s.baseline() <= 0 || s.n < f.EMAPeriod || len(s.recent) < f.RisingBars+1 {
+	if s.baseline() <= 0 || s.n < f.EMAPeriod || len(s.recent) < 2 {
 		return Signal{}, false
 	}
 
@@ -118,20 +121,25 @@ func (s *state) check(b market.Bar, f Filters) (Signal, bool) {
 		return Signal{}, false
 	}
 
+	if !s.priorBarsLiquid(b, f.PriorBars, f.MinPriorBarVolume) {
+		return Signal{}, false
+	}
+
 	if f.MinChangeFromOpenPct > 0 && (s.open <= 0 || (b.C-s.open)/s.open*100 < f.MinChangeFromOpenPct) {
 		return Signal{}, false
 	}
 
-	if !s.rising(f.RisingBars) {
+	if b.C <= s.recent[len(s.recent)-2].C {
 		return Signal{}, false
 	}
 
-	prev := s.recent[len(s.recent)-2]
-	if prev.C <= 0 || (b.C-prev.C)/prev.C*100 < f.MinBarChangePct {
+	low, ok := s.windowLow(f.MoveWindowMinutes)
+	if !ok || low <= 0 || (b.C-low)/low*100 < f.MinMovePct {
 		return Signal{}, false
 	}
 
-	if b.V < prev.V*f.VolRiseFactor {
+	avg, ok := s.windowAvgVolume(f.VolWindowMinutes)
+	if !ok || b.V < avg*f.VolRiseFactor {
 		return Signal{}, false
 	}
 
@@ -152,14 +160,75 @@ func (s *state) check(b market.Bar, f Filters) (Signal, bool) {
 	}, true
 }
 
-// rising reports whether the last n bars are consecutive minutes with each close above the prior close.
-func (s *state) rising(n int) bool {
-	for i := 0; i < n; i++ {
-		cur, prev := s.recent[len(s.recent)-1-i], s.recent[len(s.recent)-2-i]
-		if cur.C <= prev.C || cur.Start-prev.Start != 60_000 {
+// priorBarsLiquid reports whether each of the n minutes before b has a bar with at least minVol volume.
+func (s *state) priorBarsLiquid(b market.Bar, n int, minVol float64) bool {
+	for i := 1; i <= n; i++ {
+		if s.volumeAt(b.Start-int64(i)*barMs) < minVol {
 			return false
 		}
 	}
 
 	return true
+}
+
+// volumeAt returns the volume of the bar starting at start, or 0 when that minute had no bar.
+func (s *state) volumeAt(start int64) float64 {
+	for i := len(s.recent) - 1; i >= 0; i-- {
+		if s.recent[i].Start == start {
+			return s.recent[i].V
+		}
+
+		if s.recent[i].Start < start {
+			break
+		}
+	}
+
+	return 0
+}
+
+// priorBars returns the bars before the latest one that started within minutes of it.
+func (s *state) priorBars(minutes int) []market.Bar {
+	latest := s.recent[len(s.recent)-1]
+
+	var bars []market.Bar
+
+	for i := len(s.recent) - 2; i >= 0; i-- {
+		if latest.Start-s.recent[i].Start > int64(minutes)*barMs {
+			break
+		}
+
+		bars = append(bars, s.recent[i])
+	}
+
+	return bars
+}
+
+// windowLow is the lowest prior close in the window; it needs at least two bars.
+func (s *state) windowLow(minutes int) (float64, bool) {
+	bars := s.priorBars(minutes)
+	if len(bars) < 2 {
+		return 0, false
+	}
+
+	low := bars[0].C
+	for _, b := range bars[1:] {
+		low = min(low, b.C)
+	}
+
+	return low, true
+}
+
+// windowAvgVolume is the mean volume of the prior bars in the window.
+func (s *state) windowAvgVolume(minutes int) (float64, bool) {
+	bars := s.priorBars(minutes)
+	if len(bars) == 0 {
+		return 0, false
+	}
+
+	var sum float64
+	for _, b := range bars {
+		sum += b.V
+	}
+
+	return sum / float64(len(bars)), true
 }

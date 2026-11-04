@@ -25,11 +25,14 @@ export interface Filters {
   minChangeFromOpenPct: number
   minSessionVolume: number
   minBarVolume: number
+  priorBars: number
+  minPriorBarVolume: number
   minFloat: number
   maxFloat: number
-  minBarChangePct: number
+  moveWindowMinutes: number
+  minMovePct: number
+  volWindowMinutes: number
   volRiseFactor: number
-  risingBars: number
   emaPeriod: number
   cooldownMinutes: number
   preMarket: boolean

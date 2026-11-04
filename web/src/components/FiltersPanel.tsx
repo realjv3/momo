@@ -31,6 +31,8 @@ const GROUPS: { title: string; fields: Field[] }[] = [
     fields: [
       { key: 'minSessionVolume', label: 'Min session volume', step: 1000 },
       { key: 'minBarVolume', label: 'Min 1-min volume', step: 500 },
+      { key: 'priorBars', label: 'Prior bars checked', step: 1 },
+      { key: 'minPriorBarVolume', label: 'Min volume per prior bar', hint: 'missing minute = 0', step: 500 },
       { key: 'minFloat', label: 'Min float (M)', scale: 1e6, step: 0.5 },
       { key: 'maxFloat', label: 'Max float (M)', hint: '0 = no cap', scale: 1e6, step: 0.5 },
     ],
@@ -39,9 +41,10 @@ const GROUPS: { title: string; fields: Field[] }[] = [
     title: 'Momentum',
     fields: [
       { key: 'emaPeriod', label: 'EMA period', hint: 'price must be above', step: 1 },
-      { key: 'risingBars', label: 'Consecutive rising bars', step: 1 },
-      { key: 'minBarChangePct', label: 'Min 1-min price rise %', step: 0.05 },
-      { key: 'volRiseFactor', label: '1-min volume vs prior (x)', step: 0.1 },
+      { key: 'moveWindowMinutes', label: 'Move window (min)', step: 1 },
+      { key: 'minMovePct', label: 'Min rise off window low %', step: 0.5 },
+      { key: 'volWindowMinutes', label: 'Volume baseline (min)', step: 1 },
+      { key: 'volRiseFactor', label: 'Volume vs baseline (x)', step: 0.1 },
       { key: 'cooldownMinutes', label: 'Per-symbol cooldown (min)', step: 1 },
     ],
   },
