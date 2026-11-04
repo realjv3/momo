@@ -70,7 +70,7 @@ func TestSignalOnUpwardMomentum(t *testing.T) {
 func TestFiltersBlock(t *testing.T) {
 	cases := map[string]func(*Filters, *Meta){
 		"price above max":  func(f *Filters, _ *Meta) { f.MaxPrice = 2 },
-		"float above max":  func(_ *Filters, m *Meta) { m.Float = 50_000_000 },
+		"float above max":  func(_ *Filters, m *Meta) { m.Float = 400_000_000 },
 		"unknown float":    func(_ *Filters, m *Meta) { m.Float = 0 },
 		"change too small": func(f *Filters, _ *Meta) { f.MinChangePct = 90 },
 		"session disabled": func(f *Filters, _ *Meta) { f.Regular = false },

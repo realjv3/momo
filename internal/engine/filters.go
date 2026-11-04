@@ -35,7 +35,7 @@ func DefaultFilters() Filters {
 		MinBarVolume:      5_000,
 		PriorBars:         2,
 		MinPriorBarVolume: 2_000,
-		MaxFloat:          20_000_000,
+		MaxFloat:          300_000_000,
 		MoveWindowMinutes: 5,
 		MinMovePct:        3,
 		VolWindowMinutes:  3,
