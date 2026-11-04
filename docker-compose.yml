@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: momo
+      POSTGRES_PASSWORD: momo
+      POSTGRES_DB: momo
+    ports:
+      - "5433:5432"
+    volumes:
+      - momo-pg:/var/lib/postgresql/data
+volumes:
+  momo-pg:
