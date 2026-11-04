@@ -41,7 +41,7 @@ func Load() (Config, error) {
 		RESTBase:    "https://api.massive.com",
 		WSURL:       ws,
 		RESTPerMin:  rpm,
-		DatabaseURL: env("DATABASE_URL", "postgres://momo:momo@localhost:5433/momo?sslmode=disable"),
+		DatabaseURL: env("DATABASE_URL", "postgres://momo:momo@localhost:5437/momo?sslmode=disable"),
 		Addr:        env("ADDR", ":7778"),
 		Dev:         os.Getenv("MOMO_DEV") == "1",
 	}, nil

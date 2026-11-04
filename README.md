@@ -5,7 +5,7 @@ NASDAQ small-cap momentum scanner. Go backend, Postgres, React UI.
 ## Run
 
 ```sh
-docker compose up -d                  # postgres on :5433
+docker compose up -d                  # postgres on :5437
 cp .env.example .env                  # set MASSIVE_API_KEY
 go run ./cmd/momo serve               # API + websocket on :7778 (first run loads the universe)
 cd web && npm install && npm run dev  # UI on :5173, proxies /api to :7778

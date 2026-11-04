@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: momo
       POSTGRES_DB: momo
     ports:
-      - "5433:5432"
+      - "5437:5432"
     volumes:
       - momo-pg:/var/lib/postgresql/data
 volumes:
