@@ -57,7 +57,7 @@ func (s *state) apply(b market.Bar, period int) {
 
 	if sess != s.sess {
 		s.sess = sess
-		s.ema, s.n, s.sessVol, s.recent = 0, 0, 0, nil
+		s.sessVol = 0
 	}
 
 	if sess == session.Closed {

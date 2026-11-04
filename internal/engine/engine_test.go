@@ -237,3 +237,26 @@ func TestMissingPriorMinuteBlocksSignal(t *testing.T) {
 		t.Fatalf("a missing prior minute counts as zero volume, got %d signals", len(sigs))
 	}
 }
+
+func TestEMAAndHistoryCarryAcrossTheOpen(t *testing.T) {
+	open := time.Date(2026, 11, 2, 9, 30, 0, 0, session.ET)
+	at := func(min int, c, v float64) market.Bar {
+		start := open.Add(time.Duration(min) * time.Minute)
+
+		return market.Bar{Sym: "X", C: c, V: v, Start: start.UnixMilli(), End: start.Add(time.Minute).UnixMilli()}
+	}
+
+	var bars []market.Bar
+	for i := -10; i < 1; i++ {
+		bars = append(bars, at(i, 1.96, 5_000))
+	}
+
+	bars = append(bars, at(1, 2.10, 12_000))
+
+	f := testFilters()
+	f.MinSessionVolume = 0
+
+	if sigs := run(t, Meta{Float: 3_000_000, PrevClose: 1.69}, f, bars); len(sigs) != 1 {
+		t.Fatalf("a jump one minute after the open should signal off pre-market history, got %d", len(sigs))
+	}
+}
