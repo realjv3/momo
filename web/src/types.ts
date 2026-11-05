@@ -11,6 +11,11 @@ export interface Signal {
   volume: number
 }
 
+export interface SignalPage {
+  signals: Signal[]
+  total: number
+}
+
 export interface Status {
   session: SessionName
   feed: string

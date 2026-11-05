@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { FiltersPanel } from './components/FiltersPanel'
 import { Header } from './components/Header'
+import { Pager } from './components/Pager'
 import { SignalTable } from './components/SignalTable'
 import { pop, unlockAudio } from './sound'
 import { useScanner } from './useScanner'
@@ -18,7 +19,7 @@ export default function App() {
     if (soundOn && !pop()) setLocked(true)
   }, [soundOn])
 
-  const { signals, status, online, freshIds } = useScanner(onLive)
+  const { signals, total, page, setPage, pageSize, setPageSize, pendingNew, status, online, freshIds } = useScanner(onLive)
 
   // browsers block audio until a gesture; unlock on the first interaction
   useEffect(() => {
@@ -72,7 +73,18 @@ export default function App() {
           </button>
         )}
 
+        {page > 0 && pendingNew > 0 && (
+          <button
+            onClick={() => setPage(0)}
+            className="mb-4 w-full rounded-xl bg-emerald-400/10 py-2.5 text-sm font-medium text-emerald-300 ring-1 ring-emerald-400/30"
+          >
+            {pendingNew} new {pendingNew === 1 ? 'signal' : 'signals'} - back to latest
+          </button>
+        )}
+
         <SignalTable signals={signals} freshIds={freshIds} />
+
+        {total > 0 && <Pager page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />}
       </main>
 
       <FiltersPanel open={filtersOpen} onClose={() => setFiltersOpen(false)} />

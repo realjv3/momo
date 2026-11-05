@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -96,15 +97,32 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
+type signalPage struct {
+	Signals []engine.Signal `json:"signals"`
+	Total   int             `json:"total"`
+}
+
 func (s *Server) getSignals(w http.ResponseWriter, r *http.Request) {
-	sigs, err := s.st.RecentSignals(r.Context(), 200)
+	limit := min(max(queryInt(r, "limit", 50), 1), 200)
+	offset := max(queryInt(r, "offset", 0), 0)
+
+	sigs, total, err := s.st.ListSignals(r.Context(), limit, offset)
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 
 		return
 	}
 
-	writeJSON(w, sigs)
+	writeJSON(w, signalPage{Signals: sigs, Total: total})
+}
+
+func queryInt(r *http.Request, key string, def int) int {
+	n, err := strconv.Atoi(r.URL.Query().Get(key))
+	if err != nil {
+		return def
+	}
+
+	return n
 }
 
 func (s *Server) getFilters(w http.ResponseWriter, r *http.Request) {
